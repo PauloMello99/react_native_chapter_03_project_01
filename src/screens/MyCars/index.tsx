@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, StatusBar } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useTheme } from 'styled-components';
 import { AntDesign } from '@expo/vector-icons';
+import { format, parseISO } from 'date-fns';
 
 import { Car } from '../../components/Car';
 import { Load } from '../../components/Load';
 import { BackButton } from '../../components/BackButton';
 
-import { CarDTO } from '../../dtos/carDTO';
 import { api } from '../../services/api';
+import { Car as CarModel } from '../../database/model/Car';
 
 import {
     Container,
@@ -32,32 +33,37 @@ import {
 export interface CarProps {
     id: string;
     user_id: string;
-    car: CarDTO;
-    startDate: string;
-    endDate: string;
+    car: CarModel;
+    start_date: string;
+    end_date: string;
 }
 
 export function MyCars() {
     const navigation = useNavigation();
     const theme = useTheme();
+    const isScreenFocused = useIsFocused();
+
     const [cars, setCars] = useState<CarProps[]>([]);
     const [loading, setLoading] = useState(true);
 
     function renderCar({ item }: { item: CarProps }) {
+        const formattedStartDate = format(parseISO(item.start_date), 'dd/MM/yyyy');
+        const formattedEndDate = format(parseISO(item.end_date), 'dd/MM/yyyy');
+
         return (
             <CarWrapper>
                 <Car data={item.car} />
                 <CarFooter>
                     <CarFooterTitle>Período</CarFooterTitle>
                     <CarFooterPeriod>
-                        <CarFooterDate>{item.startDate}</CarFooterDate>
+                        <CarFooterDate>{formattedStartDate}</CarFooterDate>
                         <AntDesign
                             name="arrowright"
                             size={20}
                             color={theme.colors.title}
                             style={{ marginHorizontal: 12 }}
                         />
-                        <CarFooterDate>{item.endDate}</CarFooterDate>
+                        <CarFooterDate>{formattedEndDate}</CarFooterDate>
                     </CarFooterPeriod>
                 </CarFooter>
             </CarWrapper>
@@ -69,10 +75,10 @@ export function MyCars() {
     }
 
     useEffect(() => {
-        async function getCars() {
+        async function fetchCars() {
             try {
-                const { data: cars } = await api.get<CarProps[]>('schedules_byuser?user_id=1');
-                setCars(cars);
+                const { data } = await api.get('/rentals');
+                setCars(data);
             } catch (error) {
                 Alert.alert('Meus carros', 'Falha ao carregar dados, tente novamente');
             } finally {
@@ -80,8 +86,8 @@ export function MyCars() {
             }
         }
 
-        getCars();
-    }, []);
+        fetchCars();
+    }, [isScreenFocused]);
 
     return (
         <Container>

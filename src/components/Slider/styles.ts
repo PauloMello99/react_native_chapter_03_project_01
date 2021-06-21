@@ -1,9 +1,8 @@
-import { Dimensions, FlatList } from 'react-native';
 import styled from 'styled-components/native';
+import { Dimensions, FlatList } from 'react-native';
+import FastImage from 'react-native-fast-image';
 
-interface ImageIndexProps {
-    active: boolean;
-}
+import { Slide } from '.';
 
 export const Container = styled.View`
     width: 100%;
@@ -15,14 +14,6 @@ export const ImageIndexes = styled.View`
     padding-right: 24px;
 `;
 
-export const ImageIndex = styled.View<ImageIndexProps>`
-    height: 6px;
-    width: 6px;
-    border-radius: 3px;
-    margin-left: 8px;
-    background-color: ${({ theme, active }) => (active ? theme.colors.main : theme.colors.text)};
-`;
-
 export const CarImageWrapper = styled.View`
     width: ${Dimensions.get('window').width}px;
     height: 132px;
@@ -30,12 +21,12 @@ export const CarImageWrapper = styled.View`
     justify-content: center;
 `;
 
-export const CarImage = styled.Image`
+export const CarImage = styled(FastImage)`
     width: 280px;
     height: 132px;
 `;
 
-export const ImageList = styled(FlatList as new () => FlatList<string>).attrs({
+export const ImageList = styled(FlatList as new () => FlatList<Slide>).attrs({
     horizontal: true,
     pagingEnabled: true,
     showsHorizontalScrollIndicator: false,

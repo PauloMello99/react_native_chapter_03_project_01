@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, StatusBar } from 'react-native';
-import { useTheme } from 'styled-components';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
 import { RFValue } from 'react-native-responsive-fontsize';
 import { format } from 'date-fns';
+import { useTheme } from 'styled-components';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNetInfo } from '@react-native-community/netinfo';
 
 import { Accessory } from '../../components/Accessory';
 import { BackButton } from '../../components/BackButton';
@@ -12,6 +13,7 @@ import { Slider } from '../../components/Slider';
 import { Button } from '../../components/Button';
 
 import { api } from '../../services/api';
+import { useAuth } from '../../hooks/auth';
 import { CarDTO } from '../../dtos/carDTO';
 import { getAccessoryIcon } from '../../utils/getAccessoryIcon';
 import { getPlatformDate } from '../../utils/getPlatformDate';
@@ -53,10 +55,14 @@ interface Params {
 }
 
 export function SchedulingDetails() {
+    const netinfo = useNetInfo();
+    const { user } = useAuth();
     const navigation = useNavigation();
     const route = useRoute();
     const theme = useTheme();
+
     const [saving, setSaving] = useState(false);
+    const [updatedCar, setUpdatedCar] = useState<CarDTO>({} as CarDTO);
 
     const { car, dates } = route.params as Params;
 
@@ -68,27 +74,28 @@ export function SchedulingDetails() {
         []
     );
 
-    const rentTotal = useMemo(() => Number(dates.length * car.rent.price), []);
+    const rentTotal = useMemo(() => Number(dates.length * car.price), []);
 
     async function handleConfirmRental() {
         try {
             setSaving(true);
-            const { data: schedulesByCar } = await api.get(`schedules_bycars/${car.id}`);
-            const unavailable_dates = [...schedulesByCar.unavailable_dates, ...dates];
 
-            await api.post('schedules_byuser', {
-                user_id: 1,
-                car,
-                startDate: format(getPlatformDate(new Date(dates[0])), 'dd/MM/yyyy'),
-                endDate: format(getPlatformDate(new Date(dates[dates.length - 1])), 'dd/MM/yyyy'),
+            await api.post('rentals', {
+                car_id: car.id,
+                user_id: user.user_id,
+                start_date: new Date(dates[0]),
+                end_date: new Date(dates[dates.length - 1]),
+                total: rentTotal,
             });
-            await api.put(`schedules_bycars/${car.id}`, { id: car.id, unavailable_dates });
 
-            navigation.navigate('SchedulingComplete');
+            navigation.navigate('Confirmation', {
+                nextScreenRoute: 'Home',
+                title: 'Carro alugado!',
+                message: `Agora você só precisa ir\naté a concessionária da RENTX\npara pegar seu automóvel `,
+            });
         } catch (error) {
-            console.log(error);
-
             Alert.alert('Aluguel', 'Ocorreu um erro ao alugar o carro, tente novamente!');
+            console.log(error);
         } finally {
             setSaving(false);
         }
@@ -98,6 +105,17 @@ export function SchedulingDetails() {
         navigation.goBack();
     }
 
+    useEffect(() => {
+        async function fetchUpdatedCar() {
+            const { data } = await api.get(`cars/${car.id}`);
+            setUpdatedCar(data);
+        }
+
+        if (netinfo.isConnected) {
+            fetchUpdatedCar();
+        }
+    }, [netinfo.isConnected]);
+
     return (
         <Container>
             <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
@@ -105,7 +123,13 @@ export function SchedulingDetails() {
                 <BackButton onPress={handleBack} />
             </Header>
             <CarImages>
-                <Slider imagesUrl={car.photos} />
+                <Slider
+                    imagesUrl={
+                        !!updatedCar.photos
+                            ? updatedCar.photos
+                            : [{ id: car.thumbnail, photo: car.thumbnail }]
+                    }
+                />
             </CarImages>
             <Content>
                 <Details>
@@ -114,19 +138,21 @@ export function SchedulingDetails() {
                         <Name>{car.name}</Name>
                     </Description>
                     <Rent>
-                        <Period>{car.rent.period}</Period>
-                        <Price>R$ {car.rent.price}</Price>
+                        <Period>{car.period}</Period>
+                        <Price>R$ {car.price}</Price>
                     </Rent>
                 </Details>
-                <Accessories>
-                    {car.accessories.map((accessory) => (
-                        <Accessory
-                            key={accessory.type}
-                            name={accessory.name}
-                            icon={getAccessoryIcon(accessory.type)}
-                        />
-                    ))}
-                </Accessories>
+                {updatedCar.accessories && (
+                    <Accessories>
+                        {updatedCar.accessories.map((accessory) => (
+                            <Accessory
+                                key={accessory.type}
+                                name={accessory.name}
+                                icon={getAccessoryIcon(accessory.type)}
+                            />
+                        ))}
+                    </Accessories>
+                )}
 
                 <RentalPeriod>
                     <CalendarIcon>
@@ -146,7 +172,7 @@ export function SchedulingDetails() {
                 <RentalPrice>
                     <RentalPriceLabel>Total</RentalPriceLabel>
                     <RentalPriceDetails>
-                        <RentalPriceQuota>{`R$ ${car.rent.price} x${dates.length} diárias`}</RentalPriceQuota>
+                        <RentalPriceQuota>{`R$ ${car.price} x${dates.length} diárias`}</RentalPriceQuota>
                         <RentalPriceTotal>R$ {rentTotal}</RentalPriceTotal>
                     </RentalPriceDetails>
                 </RentalPrice>

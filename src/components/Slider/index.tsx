@@ -1,17 +1,17 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { ViewToken } from 'react-native';
 
-import {
-    Container,
-    ImageIndexes,
-    ImageIndex,
-    CarImageWrapper,
-    CarImage,
-    ImageList,
-} from './styles';
+import { Bullet } from '../Bullet';
+
+import { Container, ImageIndexes, CarImageWrapper, CarImage, ImageList } from './styles';
+
+export interface Slide {
+    id: string;
+    photo: string;
+}
 
 interface SliderProps {
-    imagesUrl: string[];
+    imagesUrl: Slide[];
 }
 
 interface ChangeImageProps {
@@ -30,21 +30,21 @@ export function Slider({ imagesUrl }: SliderProps) {
     const dots = useMemo(
         () =>
             imagesUrl.map((_, index) => (
-                <ImageIndex key={String(index)} active={imageIndex === index} />
+                <Bullet key={String(index)} active={imageIndex === index} />
             )),
-        [imageIndex]
+        [imageIndex, imagesUrl]
     );
 
-    function renderImage({ item }: { item: string }) {
+    function renderImage({ item }: { item: Slide }) {
         return (
             <CarImageWrapper>
-                <CarImage source={{ uri: item }} resizeMode="contain" />
+                <CarImage source={{ uri: item.photo }} resizeMode="contain" />
             </CarImageWrapper>
         );
     }
 
-    function keyExtractor(key: string) {
-        return key;
+    function keyExtractor(item: Slide) {
+        return item.id;
     }
 
     return (
